@@ -1,35 +1,70 @@
-# Run this app with `python app.py` and
-# visit http://127.0.0.1:8050/ in your web browser.
-
-
-from dash import Dash, html, dcc
-import plotly.express as px
+# Import packages
+from dash import Dash, html, dash_table, dcc, callback, Output, Input
 import pandas as pd
+import plotly.express as px
+import base64
+import io
 
+# Initialize the app
 app = Dash(__name__)
 
-# assume you have a "long-form" data frame
-# see https://plotly.com/python/px-arguments/ for more options
-df = pd.DataFrame({
-    "Погода": ["Хабаровск", "Комсомольск-на-Амуре", "Амурск", "Хабаровск", "Комсомольск-на-Амуре", "Амурск"],
-    "Показатели": [40, 10, 20, 20, 40, 50],
-    "Обозначения": ["Влажность %", "Влажность %", "Влажность %", "Температура C", "Температура C", "Температура C"]
-})
-
-fig = px.bar(df, x="Погода", y="Показатели", color="Обозначения", barmode="group")
-
-app.layout = html.Div(children=[
-    html.H1(children='Показатели погоды'),
-
-    html.Div(children='''
-        Dash: A web application framework for your data.
-    '''),
-
-    dcc.Graph(
-        id='example-graph',
-        figure=fig
-    )
+# App layout with file upload
+app.layout = html.Div([
+    dcc.Upload(
+        id='upload-data',
+        children=html.Div([
+            'Drag and Drop or ',
+            html.A('Select Files')
+        ]),
+        style={
+            'width': '100%',
+            'height': '60px',
+            'lineHeight': '60px',
+            'borderWidth': '1px',
+            'borderStyle': 'dashed',
+            'borderRadius': '5px',
+            'textAlign': 'center',
+            'margin': '10px'
+        },
+        multiple=False  # Allow only single file upload
+    ),
+    html.Div(id='output-data-upload'),
+    html.Div(children='Погода'),
+    html.Hr(),
+    dcc.RadioItems(options=[
+        {'label': 'ветер день', 'value': 'ветер день'},
+        {'label': 'Температура день', 'value': 'Температура день'}
+    ], value='ветер день', id='controls-and-radio-item'),
+    dash_table.DataTable(data=[], page_size=10, id='data-table'),
+    dcc.Graph(figure={}, id='controls-and-graph'),
+    dcc.Graph(figure={}, id='histogram-chart'),
+    dcc.Graph(figure={}, id='line-chart'),
 ])
 
+# Add controls to build the interaction
+@app.callback(
+    [Output(component_id='data-table', component_property='data'),
+     Output(component_id='controls-and-graph', component_property='figure'),
+     Output(component_id='histogram-chart', component_property='figure'),
+     Output(component_id='line-chart', component_property='figure')],
+    [Input(component_id='upload-data', component_property='contents'),
+     Input(component_id='upload-data', component_property='filename'),
+     Input(component_id='controls-and-radio-item', component_property='value')]
+)
+def update_data_and_graph(contents, filename, col_chosen):
+    if contents is not None:
+        content_type, content_string = contents.split(',')
+        decoded = base64.b64decode(content_string)
+        df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+
+        fig_hist = px.histogram(df, x='id города', y=col_chosen, histfunc='avg')
+        fig_pie = px.pie(df, values='id города', names='облачность день')
+        fig_bar = px.bar(df, x='ветер день', y='id города')
+
+        return df.to_dict('records'), fig_pie, fig_hist, fig_bar
+    else:
+        return [], {}, {}, {}
+
+# Run the app
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run_server(debug=True)
