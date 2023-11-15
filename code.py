@@ -1,14 +1,12 @@
-# Import packages
+
 from dash import Dash, html, dash_table, dcc, callback, Output, Input
 import pandas as pd
 import plotly.express as px
 import base64
 import io
 
-# Initialize the app
 app = Dash(__name__)
 
-# App layout with file upload
 app.layout = html.Div([
     dcc.Upload(
         id='upload-data',
@@ -41,7 +39,6 @@ app.layout = html.Div([
     dcc.Graph(figure={}, id='line-chart'),
 ])
 
-# Add controls to build the interaction
 @app.callback(
     [Output(component_id='data-table', component_property='data'),
      Output(component_id='controls-and-graph', component_property='figure'),
@@ -65,6 +62,5 @@ def update_data_and_graph(contents, filename, col_chosen):
     else:
         return [], {}, {}, {}
 
-# Run the app
 if __name__ == '__main__':
     app.run_server(debug=True)
